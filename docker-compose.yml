@@ -1,0 +1,47 @@
+version: "3"
+networks:
+  web_service:
+    driver: bridge
+
+services:
+  webservice:
+    dns:
+      - 8.8.8.8
+    networks:
+      web_service:
+    ports:
+      - "8000:8000"
+    image: jbcurtin/tfa-django
+    build:
+      context: ./webservice
+      dockerfile: ./Dockerfile
+    environment:
+      DEBUG: 'true'
+      PSQL_URL: 'postgresql://db-user:db-pass@database:5432/tfa'
+      REDIS_URL: 'redis://cache:6379/0'
+    command: "./.local/bin/gunicorn lab.wsgi -b 0.0.0.0"
+    depends_on:
+      - cache
+      - database
+
+  cache:
+    dns:
+      - 8.8.8.8
+    networks:
+      web_service:
+    image: redis:5.0.3-alpine
+
+  database:
+    dns:
+      - 8.8.8.8
+    networks:
+      web_service:
+    image: postgres:10.6-alpine
+    # volumes:
+    #   - ./docker-data/postgresql:/mnt/data:rw
+    environment:
+      POSTGRES_PASSWORD: 'db-pass'
+      POSTGRES_USER: 'db-user'
+      PGDATA: '/mnt/data'
+      POSTGRES_DB: 'tfa'
+      POSTGRES_INITDB_ARGS: '-D /mnt/data'
